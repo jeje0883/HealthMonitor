@@ -127,6 +127,17 @@ ECG (edit in `config.h`):
 
 ## Web UI & API
 
+### Endpoints
+
+| Path                    | Method | Content-Type       | Description                                        |
+| ----------------------- | ------ | ------------------ | -------------------------------------------------- |
+| `/`                     | GET    | `text/html`        | Web dashboard (vitals + ECG canvas)                |
+| `/api/metrics`          | GET    | `application/json` | Pulse, SpO₂, PI, finger, temperature               |
+| `/api/ecg`              | GET    | `application/json` | Recent ECG samples; query `n=1..800` (default 300) |
+| `/config`               | GET    | `text/html`        | Wi‑Fi configuration portal                         |
+| `/save?ssid=..&pass=..` | GET    | `text/html`        | Save Wi‑Fi credentials and reboot                  |
+| `/erase`                | GET    | `text/html`        | Erase saved Wi‑Fi credentials and reboot           |
+
 Dashboard: /
 
 JSON metrics: `/api/metrics`
