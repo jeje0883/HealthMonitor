@@ -1,1 +1,216 @@
-# HealthMonitor
+ESP32-C3 Health Monitor (MAX30102 + MAX30205 + OLED + Wi-Fi + OTA)
+
+A modular ESP32-C3 health monitor that reads BPM/SpO₂/Signal strength (PI) from a MAX30102, temperature from a MAX30205, shows them on a 0.42" SH1106 OLED (72×40 visible area), and serves a web dashboard + JSON API over Wi-Fi. Includes OTA firmware updates. Sensors are plug-in modules so you can add more later with minimal code changes.
+
+🧰 Hardware & Wiring
+
+Board: ESP32-C3 (e.g., ESP32C3 Dev Module).
+OLED: 0.42" SH1106, 72×40 visible (we draw inside a 70×40 window at offset (30,12)).
+Bus: I²C shared by all devices.
+
+Signal	ESP32-C3	OLED	MAX30102	MAX30205
+SDA	GPIO 5	SDA	SDA	SDA
+SCL	GPIO 6	SCL	SCL	SCL
+VCC	3V3	3V3	3V3	3V3
+GND	GND	GND	GND	GND
+
+Notes
+• MAX30102 default I²C address: 0x57
+• MAX30205 address auto-detected in 0x48–0x4F range
+• Keep everything at 3.3V.
+• OLED uses U8g2 with a 128×64 buffer; we render inside a 70×40 area at (30,12).
+
+📦 Project Layout (modules)
+HealthMonitor/
+├─ HealthMonitor.ino           # main: boot, init, loop; wires modules together
+├─ config.h                    # pins, OLED window, feature flags, thresholds
+├─ display_oled.h/.cpp         # U8g2 OLED driver + boot splash + layout
+├─ sensor_max30102.h/.cpp      # MAX30102 (BPM/SpO₂/PI) with smoothing/hold
+├─ sensor_max30205.h/.cpp      # MAX30205 (temperature), autodetect address
+├─ net_wifiweb.h/.cpp          # Wi-Fi AP/STA + web UI + JSON API + config portal
+├─ net_ota.h/.cpp              # OTA update (ArduinoOTA)
+├─ settings.h/.cpp             # persistent Wi-Fi creds (Preferences/NVS)
+└─ README.md                   # this file
+
+
+External libraries (Arduino IDE → Library Manager / Boards Manager):
+
+ESP32 core by Espressif (Board: ESP32C3 Dev Module)
+
+U8g2 by olikraus
+
+SparkFun MAX3010x by SparkFun
+
+Built-ins used: WiFi.h, WebServer.h, ESPmDNS.h, ArduinoOTA.h, Preferences.h, Wire.h.
+
+⚙️ Arduino IDE Setup
+
+Install ESP32 core (Boards Manager)
+
+Install libraries: U8g2, SparkFun MAX3010x
+
+Board: ESP32C3 Dev Module
+
+Upload speed: 115200 (or 921600 if stable)
+
+USB CDC On Boot: Enabled
+
+Open HealthMonitor.ino
+
+If you see 'TwoWire' has not been declared, make sure #include <Wire.h> is at the top of:
+
+HealthMonitor.ino
+
+display_oled.h
+
+sensor_max30102.h
+
+sensor_max30205.h
+
+🏃 Quick Start (first run)
+
+Wire the sensors and OLED as shown above.
+
+Build & Upload HealthMonitor.ino.
+
+On boot, device starts in:
+
+AP mode if no saved Wi-Fi creds
+
+AP SSID: ESP32C3-Health (default open AP; set in config.h)
+
+Connect and open http://192.168.4.1/
+
+STA mode if Wi-Fi creds are saved (see next section)
+
+The web dashboard shows Pulse, SpO₂, Temp, and a signal bar (PI).
+
+Put a finger on the MAX30102; Pulse/SpO₂ will appear once stable.
+
+🌐 Wi-Fi Modes & Config Portal
+
+Auto STA/AP: the app tries STA using saved creds; if it fails or none saved, it starts AP.
+
+Config portal (works in AP or STA):
+
+Visit /config (e.g., http://192.168.4.1/config in AP mode)
+
+Enter SSID/PASS → Save & Reboot → device comes up in STA mode
+
+http://esp32c3-health.local/ is available on networks that support mDNS
+
+Erase credentials: open /erase then reboot (it happens automatically).
+
+Defaults (edit in config.h):
+
+#define DEFAULT_AP_SSID  "ESP32C3-Health"
+#define DEFAULT_AP_PASS  ""            // open AP by default
+#define DEFAULT_HOSTNAME "esp32c3-health"
+#define OTA_PASSWORD     ""            // set this before real deployment!
+
+🌐 Web UI & API
+
+Dashboard: /
+
+JSON metrics: /api/metrics
+
+{
+  "pulse": 78,         // null if not valid
+  "spo2": 97,          // null if not valid
+  "pi": 3.4,           // perfusion index (%), smoothed & held briefly
+  "finger": true,      // finger/contact detected
+  "tempC": 36.6        // null if no sensor
+}
+
+
+Config: /config
+
+Save Wi-Fi: /save?ssid=MyWiFi&pass=MyPass
+
+Erase Wi-Fi: /erase
+
+🔁 OTA Updates
+
+With device on your Wi-Fi (STA), Arduino IDE → Ports → Network → select esp32c3-health.local
+
+Click Upload to perform OTA.
+
+Set OTA_PASSWORD in config.h before deploying to shared networks.
+
+📟 OLED Layout
+
+Line 1: Pulse: 075 bpm (hidden as -- if no recent beat)
+
+Line 2: O2:97 T:36.6 (SpO₂ + temperature)
+
+Line 3: Signal bar only (no % text). Full bar = good signal.
+
+Rendering area: (x=30, y=12, w=70, h=40) inside a 128×64 buffer.
+
+🔬 Sensor Processing (high-level)
+
+MAX30102
+
+Reads RED+IR via FIFO
+
+Computes DC (mean) and AC (RMS around DC)
+
+SpO₂ via ratio-of-ratios → polynomial fit (clamped 0–100%)
+
+BPM via dynamic-threshold peak detection on IR + EMA smoothing
+
+PI = (AC(IR)/DC(IR))×100%, smoothed; briefly held when DC dips (debounce)
+
+Hides BPM when no recent beat (≤2s) or no finger (low DC)
+
+MAX30205
+
+Reads °C from register 0x00 (LSB = 1/256 °C)
+
+Autodetects address 0x48–0x4F; updates every 500 ms.
+
+Tune in config.h:
+
+static constexpr float DC_NOFINGER   = 10000.0f; // lower -> more sensitive
+static constexpr float DC_PI_GUARD   = 12000.0f; // min DC to compute PI
+static constexpr float PI_BAR_FULL   = 10.0f;    // 10% -> full bar
+static constexpr float PI_CLAMP_MAX  = 30.0f;    // cap serial/UI spikes
+static constexpr uint32_t PI_HOLD_MS = 1500;     // hold PI after a dip
+
+🧪 Quick Tests
+
+1) API sanity
+
+curl http://192.168.4.1/api/metrics
+# or, on STA/mDNS:
+curl http://esp32c3-health.local/api/metrics
+
+
+2) Check pulse rendering: press firmly, keep still; BPM should appear within a couple of seconds and stabilize.
+
+3) Temperature: touch the MAX30205; temp should move slowly upward.
+
+🛠️ Troubleshooting
+
+No OLED output: ensure SDA=5/SCL=6 wiring; panel uses SH1106 w/ visible window at (30,12).
+
+I²C not found: run an I²C scanner at pins 5/6; verify 3.3V power and pullups (most modules include them).
+
+BPM shows --: poor contact/motion → improve placement; watch the signal bar.
+
+PI jumps/drops to 0: brief DC dips are debounced; if still frequent, increase LED current in sensor_max30102.cpp (_dev.setup(… 80 …) → 100) but avoid clipping; or lower DC_* guards slightly.
+
+OTA not visible: ensure the ESP32 is in STA mode and on the same network as your PC; some routers block mDNS—use the printed STA IP.
+
+➕ Adding a New Sensor (pattern)
+
+Create sensor_newchip.h/.cpp exposing:
+
+void begin(TwoWire& bus);
+void update();
+// getters for whatever values you want to show/serve
+
+
+Include and instantiate it in HealthMonitor.ino, call begin() in setup() and update() in loop().
+
+Extend WiFiWeb::_handleMetrics() to add JSON fields, and DisplayOLED::render() to draw them (or create a second page).
