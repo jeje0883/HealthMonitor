@@ -29,3 +29,21 @@ static constexpr float DC_PI_GUARD   = 12000.0f;  // DC min to compute PI
 static constexpr float PI_BAR_FULL   = 10.0f;     // 10% => full bar
 static constexpr float PI_CLAMP_MAX  = 30.0f;     // clamp absurd spikes for UI
 static constexpr uint32_t PI_HOLD_MS = 1500;      // hold last PI when DC dips
+
+// --------- ECG (AD8232) ----------
+#define ENABLE_AD8232
+
+// ADC pin for AD8232 OUT (change if needed)
+#define ECG_PIN            4
+
+// Optional lead-off digital pins (-1 to disable)
+#define ECG_LOP_PIN       -1     // e.g., 7
+#define ECG_LON_PIN       -1     // e.g., 8
+
+// Sample rate and buffer
+#define ECG_SAMPLE_HZ     250    // Hz
+#define ECG_RING_SAMPLES  1000   // ~4s at 250 Hz
+
+// High-pass filter for baseline drift (0..1, higher = slower cutoff)
+#define ECG_HP_ALPHA      0.995f
+

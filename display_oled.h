@@ -1,6 +1,5 @@
-// display_oled.h
 #pragma once
-#include <Wire.h>    
+#include <Wire.h>
 #include <U8g2lib.h>
 #include "config.h"
 
@@ -8,6 +7,10 @@ class DisplayOLED {
 public:
   void begin(TwoWire& bus);
   void splash();
+
+  // NEW: brief sensor status screen after splash
+  void detectSummary(bool has30102, bool has30205);
+
   void render(bool beatRecently, int bpm, int spo2, bool hasTemp, float tempC,
               bool hasFinger, float perfIndex);
 private:

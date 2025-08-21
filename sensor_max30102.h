@@ -15,6 +15,8 @@ public:
   void   begin(TwoWire& bus);
   void   update();
 
+   bool   present()   const { return _ok; }
+
   bool   hasFinger() const { return _hasFinger; }
   bool   beatRecently() const;
   int    bpmRounded() const;      // -1 if not valid

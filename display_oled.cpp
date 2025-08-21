@@ -1,9 +1,8 @@
-// display_oled.cpp
 #include "display_oled.h"
 
 void DisplayOLED::begin(TwoWire& bus) {
   (void)bus;
-  u8g2.setBusClock(400000);
+  u8g2.setBusClock(100000);
   u8g2.begin();
   u8g2.setContrast(255);
 }
@@ -12,9 +11,9 @@ void DisplayOLED::splash() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_5x8_tf);
   u8g2.drawStr(OLED_XOFF, OLED_YOFF + 8,  "ESP32-C3 Boot...");
-  for (int i=0; i<=OLED_W; i+=5) {
-    u8g2.drawFrame(OLED_XOFF, OLED_YOFF + 16, OLED_W, 10);
-    u8g2.drawBox  (OLED_XOFF, OLED_YOFF + 16, i,      10);
+  for (int i=0; i<=OLED_W; i+=5){
+    u8g2.drawFrame(OLED_XOFF, OLED_YOFF+16, OLED_W, 10);
+    u8g2.drawBox  (OLED_XOFF, OLED_YOFF+16, i,      10);
     u8g2.drawStr  (OLED_XOFF, OLED_YOFF + 30, "Booting");
     u8g2.drawStr  (OLED_XOFF, OLED_YOFF + 38, "device");
     u8g2.sendBuffer();
@@ -22,6 +21,23 @@ void DisplayOLED::splash() {
   }
   delay(300);
   u8g2.clearBuffer(); u8g2.sendBuffer();
+}
+
+// NEW: show quick sensor presence status for ~1.2s
+void DisplayOLED::detectSummary(bool has30102, bool has30205) {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x12_tf);
+  u8g2.drawStr(OLED_XOFF, OLED_YOFF + 12, "SENSORS");
+
+  char line[24];
+  // Keep it compact to fit the 70px width
+  snprintf(line, sizeof(line), "O2:%s  T:%s",
+           has30102 ? "OK" : "--",
+           has30205 ? "OK" : "--");
+  u8g2.drawStr(OLED_XOFF, OLED_YOFF + 26, line);
+
+  u8g2.sendBuffer();
+  delay(1200);  // brief pause so user can read it
 }
 
 void DisplayOLED::render(bool beatRecently, int bpm, int spo2, bool hasTemp, float tempC,
