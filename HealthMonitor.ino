@@ -7,6 +7,7 @@
 #include "settings.h"     // <-- ensure this is included
 #include "net_wifiweb.h"
 #include "net_ota.h"
+#include "net_ble.h"
 
 DisplayOLED     oled;
 Max30102Sensor  spo2;
@@ -15,6 +16,9 @@ AD8232Sensor    ecg;          // <-- add
 WiFiWeb         web;
 OTAUpdater      ota;
 Settings        settings;
+#ifdef ENABLE_BLE
+BLEMetrics      ble;
+#endif
 
 TwoWire& BUS = Wire;
 
@@ -66,6 +70,11 @@ void setup() {
   web.beginAuto(settings, DEFAULT_AP_SSID, DEFAULT_AP_PASS, DEFAULT_HOSTNAME);
   ota.begin(DEFAULT_HOSTNAME, OTA_PASSWORD);
 
+#ifdef ENABLE_BLE
+  ble.attachSensors(&spo2, &tprobe);
+  ble.begin(DEFAULT_HOSTNAME);
+#endif
+
   Serial.println("Setup complete.");
 }
 
@@ -82,6 +91,9 @@ void loop() {
 
   web.handle();
   ota.handle();
+#ifdef ENABLE_BLE
+  ble.handle();
+#endif
 
   uint32_t now = millis();
   if (now - lastUiMs >= UI_PERIOD_MS) {

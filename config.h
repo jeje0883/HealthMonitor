@@ -14,6 +14,8 @@ static const int OLED_H    = 40;
 // --------- Feature switches ----------
 #define ENABLE_MAX30102
 #define ENABLE_MAX30205
+// Enable BLE broadcasting of metrics
+#define ENABLE_BLE
 
 // --------- Wi-Fi / Web ----------
 #define DEFAULT_AP_SSID     "ESP32C3-Health"

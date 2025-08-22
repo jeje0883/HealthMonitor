@@ -1,6 +1,6 @@
-# ESP32-C3 Health Monitor (MAX30102 + MAX30205 + AD8232 ECG + OLED + Wi‑Fi + OTA)
+# ESP32-C3 Health Monitor (MAX30102 + MAX30205 + AD8232 ECG + OLED + Wi‑Fi + OTA + BLE)
 
-A modular ESP32-C3 health monitor that reads BPM/SpO₂/Signal strength (PI) from a MAX30102, temperature from a MAX30205, and ECG waveform from an AD8232 analog front-end. It shows metrics on a 0.42" SH1106 OLED (72×40 visible area) and serves a web dashboard + JSON API (including `/api/metrics` and `/api/ecg`) over Wi‑Fi. Includes OTA firmware updates. Sensors are plug-in modules so you can add more later with minimal code changes.
+A modular ESP32-C3 health monitor that reads BPM/SpO₂/Signal strength (PI) from a MAX30102, temperature from a MAX30205, and ECG waveform from an AD8232 analog front-end. It shows metrics on a 0.42" SH1106 OLED (72×40 visible area) and serves a web dashboard + JSON API (including `/api/metrics` and `/api/ecg`) over Wi‑Fi. Includes OTA firmware updates. Sensors are plug-in modules so you can add more later with minimal code changes. Optional BLE broadcasts expose the same metrics via a GATT characteristic for mobile apps.
 
 ## Hardware & Wiring
 
@@ -51,6 +51,7 @@ HealthMonitor/
 - U8g2 by olikraus
 - SparkFun MAX3010x by SparkFun
 - Built-ins used: `WiFi.h`, `WebServer.h`, `ESPmDNS.h`, `ArduinoOTA.h`, `Preferences.h`, `Wire.h`.
+- BLE: `BLEDevice.h` (from ESP32 core)
 
 ## Arduino IDE Setup
 
@@ -87,6 +88,8 @@ STA mode if Wi-Fi creds are saved (see next section)
 The web dashboard shows Pulse, SpO₂, Temp, and a signal bar (PI).
 An ECG waveform canvas is also displayed if AD8232 is enabled and wired.
 
+If BLE is enabled, the device advertises a custom service emitting metrics once per second.
+
 Put a finger on the MAX30102; Pulse/SpO₂ will appear once stable.
 
 ## Wi‑Fi Modes & Config Portal
@@ -110,6 +113,8 @@ Defaults (edit in `config.h`):
 #define DEFAULT_AP_PASS "" // open AP by default
 #define DEFAULT_HOSTNAME "esp32c3-health"
 #define OTA_PASSWORD "" // set this before real deployment!
+// Enable BLE broadcasting of metrics
+#define ENABLE_BLE
 ```
 
 ECG (edit in `config.h`):
@@ -173,6 +178,26 @@ Response:
   "samples": [1, 2, 3]
 }
 ```
+
+## BLE Metrics (optional)
+
+When `ENABLE_BLE` is defined, a BLE GATT server exposes a custom service with a single characteristic that contains compact JSON of current metrics, updated every 1 second.
+
+- Service UUID: `a7c9b9b8-6a7e-4f2f-9f9c-2b1a3d8c1234`
+- Characteristic UUID: `b1e2c3d4-5a6b-7081-92a3-b4c5d6e7f890`
+- Device name: `DEFAULT_HOSTNAME` from `config.h`
+
+Payload example:
+
+```json
+{ "pulse": 78, "spo2": 97, "pi": 3.2, "tempC": 36.6 }
+```
+
+Notes:
+
+- Characteristic supports READ and NOTIFY.
+- Keep client-side MTU default; payload is < 100 bytes.
+- Temperature is `NaN` if the MAX30205 sensor is disabled or not present.
 
 ## OTA Updates
 
